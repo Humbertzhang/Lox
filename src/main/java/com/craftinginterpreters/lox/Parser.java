@@ -24,6 +24,7 @@ Nonterminal	        Call to that rule’s function
 
 package com.craftinginterpreters.lox;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.craftinginterpreters.lox.TokenType.*;
@@ -39,16 +40,107 @@ public class Parser {
         this.tokens = tokens;
     }
 
-    Expr parse() {
+    List<Stmt> parse() {
+        List<Stmt> statements = new ArrayList<>();
+
+        while (!isAtEnd()) {
+            statements.add(declaration());
+        }
+
+        return statements;
+    }
+
+    private Expr expression() {
+        return assignment();
+    }
+
+    // declaration    → varDecl | statement ;
+    // 任何允许声明的地方都允许一个非声明式的语句，所以 declaration 规则会下降到statement
+    private Stmt declaration() {
         try {
-            return expression();
+            if (match(VAR)) {
+                return varDeclaration();
+            }
+            // 如果匹配varDeclaration, 那么就为声明语句，否则递归下降到statement语句.
+            return statement();
         } catch (ParseError error) {
+            synchronize();
             return null;
         }
     }
 
-    private Expr expression() {
-        return equality();
+    private Stmt statement() {
+        if (match(PRINT)) {
+            return printStatement();
+        }
+        if (match(LEFT_BRACE)) {
+            return new Stmt.Block(block());
+        }
+        return expressionStatement();
+    }
+
+    private Stmt printStatement() {
+        Expr value = expression();
+        consume(SEMICOLON, "Expect ';' after value.");
+        return new Stmt.Print(value);
+    }
+
+    // varDeclaration statement
+    private Stmt varDeclaration() {
+        // 检查下一个Token是否为IDENTIFIER
+        Token name = consume(IDENTIFIER, "Expect variable name.");
+
+        Expr initializer = null;
+        // 如果下一个token为 =，那么代表该变量有初始化函数
+        if (match(EQUAL)) {
+            initializer = expression();
+        }
+
+        consume(SEMICOLON, "Expect ';' after variable declaration.");
+        // 在parse过程中确定该Statement的类型为Var Statement
+        // 并设置该Statement的name(变量名) 与 初始化函数(initializer)
+        // 该初始化函数为什么就会最终返回什么Expr
+        return new Stmt.Var(name, initializer);
+    }
+
+    // statement vs Expression
+    // Expression(表达式): produce at least one value
+    // Statement(语句) Do Something and are often composed of expressions (or other statements)
+    private Stmt expressionStatement() {
+        Expr expr = expression();
+        consume(SEMICOLON, "Expect ';' after expression.");
+        return new Stmt.Expression(expr);
+    }
+
+    // 块作用域
+    private List<Stmt> block() {
+        List<Stmt> statements = new ArrayList<>();
+
+        // 在出现右花括号之前为同一个作用域
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(declaration());
+        }
+
+        consume(RIGHT_BRACE, "Expect '}' after block.");
+        return statements;
+    }
+
+    // 赋值表达式(a = 1，而不是 var a = 1)
+    private Expr assignment() {
+        Expr expr = equality();
+        if (match(EQUAL)) {
+            Token equals = previous();
+            Expr value = assignment();
+
+            if (expr instanceof Expr.Variable) {
+                Token name = ((Expr.Variable)expr).name;
+                return new Expr.Assign(name, value);
+            }
+
+            error(equals, "Invalid assignment target.");
+        }
+
+        return expr;
     }
 
     private Expr equality() {
@@ -124,6 +216,11 @@ public class Parser {
             return new Expr.Literal(previous().literal);
         }
 
+        // 解析变量表达式
+        if (match(IDENTIFIER)) {
+            return new Expr.Variable(previous());
+        }
+
         if (match(LEFT_PAREN)) {
             Expr expr = expression();
             // TODO: Syntax Errors
@@ -145,6 +242,7 @@ public class Parser {
         return false;
     }
 
+    // 判断当前字符是否符合预期，否则抛出异常
     private Token consume(TokenType type, String message) {
         // 当前type符合预期，那么继续处理
         if (check(type)) {

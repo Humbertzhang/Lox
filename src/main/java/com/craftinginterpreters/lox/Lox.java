@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Lox {
@@ -14,6 +15,8 @@ public class Lox {
 
     static boolean hadError = false;
     static boolean hadRuntimeError = false;
+
+    static boolean repl = false;
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
@@ -29,6 +32,8 @@ public class Lox {
 
     // 以文件形式运行
     private static void runFile(String path) throws IOException {
+        repl = false;
+
         byte[] bytes = Files.readAllBytes(Paths.get(path));
         run(new String(bytes, Charset.defaultCharset()));
 
@@ -39,6 +44,9 @@ public class Lox {
 
     // 以交互式形式运行
     private static void runPrompt() throws IOException {
+        // my code for enhancing repl mode
+        repl = true;
+
         InputStreamReader input = new InputStreamReader(System.in);
         BufferedReader reader = new BufferedReader(input);
 
@@ -57,14 +65,30 @@ public class Lox {
         Scanner scanner = new Scanner(source);
         List<Token> tokens = scanner.scanTokens();
 
-        // 语法分析, 由Parser完成, 产生一个语句Expression
+        // 语法分析, 由Parser完成, 产生statements, 其中一个Statement可能由一个或多个expression组成
         Parser parser = new Parser(tokens);
-        Expr expression = parser.parse();
+        List<Stmt> statements = parser.parse();
 
         if (hadError) return;
 
-        // 解释器，运行表达式
-        interpreter.interpret(expression);
+        if (!repl) {
+            // 文件mod运行
+            interpreter.interpret(statements);
+        } else {
+            // REPL mode 运行, 这里，，否则只运行
+            for (Stmt statement: statements) {
+                // 如果是expression, 那么就直接打印结果
+                if (statement instanceof Stmt.Expression exprStatement) {
+                    interpreter.interpret(exprStatement.expression);
+                } else {
+                    // 否则只执行statement，不打印
+                    List<Stmt> tempStatementList = new ArrayList<>();
+                    tempStatementList.add(statement);
+                    interpreter.interpret(tempStatementList);
+                }
+            }
+        }
+
     }
 
     // 错误处理

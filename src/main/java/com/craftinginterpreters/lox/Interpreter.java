@@ -1,10 +1,26 @@
 package com.craftinginterpreters.lox;
 
-class Interpreter implements Expr.Visitor<Object> {
+import java.util.List;
 
-    void interpret(Expr expression) {
+class Interpreter implements Expr.Visitor<Object>,
+                             Stmt.Visitor<Void> {
+
+    private Environment environment = new Environment();
+
+    // 一个 Statement 可能由多个 expression 组成
+    void interpret(List<Stmt> statements) {
         try {
-            Object value = evaluate(expression);
+            for (Stmt statement: statements) {
+                execute(statement);
+            }
+        } catch (RuntimeError error) {
+            Lox.runtimeError(error);
+        }
+    }
+
+    void interpret(Expr expr) {
+        try {
+            Object value = evaluate(expr);
             System.out.println(stringify(value));
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
@@ -90,6 +106,20 @@ class Interpreter implements Expr.Visitor<Object> {
         return null;
     }
 
+    @Override
+    public Object visitVariableExpr(Expr.Variable expr) {
+        return environment.get(expr.name);
+    }
+
+    // 赋值与定义的主要区别在于，赋值操作不允许创建新变量。
+    @Override
+    public Object visitAssignExpr(Expr.Assign expr) {
+        Object value = evaluate(expr.value);
+        environment.assign(expr.name, value);
+
+        return value;
+    }
+
     // false and nil are falsey, and everything else is truthy
     private boolean isTruthy(Object object) {
         if (object == null) {
@@ -131,6 +161,61 @@ class Interpreter implements Expr.Visitor<Object> {
     // 递归处理
     private Object evaluate(Expr expr) {
         return expr.accept(this);
+    }
+
+    private void execute(Stmt stmt) {
+        stmt.accept(this);
+    }
+
+    void executeBlock(List<Stmt> statements, Environment environment) {
+        Environment previous = this.environment;
+
+        try {
+            // 将环境改为新传入的environment, 并执行该block中的所有语句
+            this.environment = environment;
+
+            for (Stmt statement: statements) {
+                execute(statement);
+            }
+        } finally {
+            // 并在最后将环境恢复为上一个环境
+            // 使用finally可以保证即使抛出了异常也会恢复环境
+            this.environment = previous;
+        }
+    }
+
+    @Override
+    public Void visitBlockStmt(Stmt.Block stmt) {
+        // 要执行一个块，我们先为该块作用域创建一个新的环境，然后将其传入executeBlock
+        executeBlock(stmt.statements, new Environment(environment));
+        return null;
+    }
+
+    @Override
+    public Void visitExpressionStmt(Stmt.Expression stmt) {
+        evaluate(stmt.expression);
+        return null;
+    }
+
+    @Override
+    public Void visitPrintStmt(Stmt.Print stmt) {
+        Object value = evaluate(stmt.expression);
+        System.out.println(stringify(value));
+        return null;
+    }
+
+    @Override
+    public Void visitVarStmt(Stmt.Var stmt) {
+        Object value = null;
+
+        if (stmt.initializer != null) {
+            // evaluate会调用对应expr的evaluate方法得到init expression的值
+            value = evaluate(stmt.initializer);
+        }
+
+        // 将该值放到环境中，之后使用时，会在 VarExpression 的 visit 函数中访问.
+        environment.define(stmt.name.lexeme, value);
+        return null;
     }
 
     // operator 操作符 operand 操作数
