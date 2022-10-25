@@ -1,10 +1,10 @@
-for(var a = 1; a < 10; a = a+1) {
-    if (a > 5) {
-        if (a > 6) {
-            break;
-        }
+fun fib(n) {
+    if (n <= 1) {
+        return n;
     }
-    print a;
+    return fib(n-2) + fib(n-1);
 }
 
-break;
+for(var i = 0; i < 20; i = i+1) {
+    print fib(i);
+}

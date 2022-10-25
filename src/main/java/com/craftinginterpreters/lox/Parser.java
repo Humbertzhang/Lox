@@ -61,6 +61,9 @@ public class Parser {
     // 任何允许声明的地方都允许一个非声明式的语句，所以 declaration 规则会下降到statement
     private Stmt declaration() {
         try {
+            if (match(FUN)) {
+                return function("function");
+            }
             if (match(VAR)) {
                 return varDeclaration();
             }
@@ -85,6 +88,9 @@ public class Parser {
         }
         if (match(PRINT)) {
             return printStatement();
+        }
+        if (match(RETURN)) {
+            return returnStatement();
         }
         if (match(WHILE)) {
             return whileStatement();
@@ -192,6 +198,18 @@ public class Parser {
         return new Stmt.Print(value);
     }
 
+    private Stmt returnStatement() {
+        Token keyword = previous();
+        Expr value = null;
+
+        // 如果return直接跟分号，那么就代表没有返回值
+        if (!check(SEMICOLON)) {
+            value = expression();
+        }
+        consume(SEMICOLON, "Expect ';' after return value.");
+        return new Stmt.Return(keyword, value);
+    }
+
     // varDeclaration statement
     private Stmt varDeclaration() {
         // 检查下一个Token是否为IDENTIFIER
@@ -236,6 +254,31 @@ public class Parser {
         consume(SEMICOLON, "Expect ';' after expression.");
         return new Stmt.Expression(expr);
     }
+
+    // 函数声明
+    // kind有可能是函数名，也有可能是类的方法, 为了报错方便所以加了kind这个参数
+    private Stmt.Function function(String kind) {
+        Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
+        consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+
+        // 参数
+        List<Token> parameters = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (parameters.size() >= 255) {
+                    error(peek(), "Can't have more than 255 parameters.");
+                }
+                parameters.add(consume(IDENTIFIER, "Expect parameter name."));
+            } while (match(COMMA));
+        }
+
+        consume(RIGHT_PAREN, "Expect ')' after parameters.");
+
+        consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+        List<Stmt> body = block();
+        return new Stmt.Function(name, parameters, body);
+    }
+
 
     // 块作用域
     private List<Stmt> block() {
@@ -351,7 +394,42 @@ public class Parser {
             return new Expr.Unary(operator, right);
         }
 
-        return primary();
+        return call();
+    }
+
+    // 函数调用表达式
+    private Expr call() {
+        Expr expr = primary();
+
+        while (true) {
+            // 处理函数的返回值也是函数并随之调用的情况
+            // 如 func()()
+            if (match(LEFT_PAREN)) {
+                expr = finishCall(expr);
+            } else {
+                break;
+            }
+        }
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee) {
+        List<Expr> arguments = new ArrayList<>();
+
+        // 解析函数参数
+        // !check(RIGHT_PAREN) 如果接着就是右括号，那么代表是一个无参的函数调用
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (arguments.size() >= 255) {
+                    error(peek(), "Can't have more than 255 arguments.");
+                }
+                arguments.add(expression());
+            } while (match(COMMA));
+        }
+
+        Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+
+        return new Expr.Call(callee, paren, arguments);
     }
 
     private Expr primary() {
