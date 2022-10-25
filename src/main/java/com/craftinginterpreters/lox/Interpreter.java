@@ -5,6 +5,8 @@ import java.util.List;
 class Interpreter implements Expr.Visitor<Object>,
                              Stmt.Visitor<Void> {
 
+    private static class BreakJump extends RuntimeException {}
+
     private Environment environment = new Environment();
 
     // 一个 Statement 可能由多个 expression 组成
@@ -197,6 +199,10 @@ class Interpreter implements Expr.Visitor<Object>,
         }
     }
 
+    public Void visitBreakStmt(Stmt.Break stmt) {
+        throw new BreakJump();
+    }
+
     @Override
     public Void visitBlockStmt(Stmt.Block stmt) {
         // 要执行一个块，我们先为该块作用域创建一个新的环境，然后将其传入executeBlock
@@ -244,7 +250,12 @@ class Interpreter implements Expr.Visitor<Object>,
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {
         while (isTruthy(evaluate(stmt.condition))) {
-            execute(stmt.body);
+            try {
+                execute(stmt.body);
+            }
+            catch (BreakJump breakJump) {
+                return null;
+            }
         }
         return null;
     }

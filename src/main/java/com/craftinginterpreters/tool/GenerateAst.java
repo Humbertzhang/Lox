@@ -22,6 +22,7 @@ public class GenerateAst {
         defineAst(outputDir, "Stmt", Arrays.asList(
                 // 块作用域
                 "Block      : List<Stmt> statements",
+                "Break      : ",
                 "Expression : Expr expression",
                 "If         : Expr condition, Stmt thenBranch," + " Stmt elseBranch",
                 "Print      : Expr expression",
@@ -76,7 +77,13 @@ public class GenerateAst {
         // Constructor.
         writer.println("    " + className + "(" + fieldList + ") {");
 
-        String[] fields = fieldList.split(", ");
+        String[] fields;
+        if (fieldList.isEmpty()) {
+            fields = new String[0];
+        } else {
+            fields = fieldList.split(", ");
+        }
+
         for (String field: fields) {
             String name = field.split(" ")[1];
             writer.println("      this." + name + " = " + name + ";");

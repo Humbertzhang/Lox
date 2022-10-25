@@ -36,6 +36,8 @@ public class Parser {
 
     private final List<Token> tokens;
     private int current = 0;
+    // how many enclosing loops there currently are:
+    private int loopDepth = 0;
 
     Parser(List<Token> tokens) {
         this.tokens = tokens;
@@ -71,6 +73,10 @@ public class Parser {
     }
 
     private Stmt statement() {
+        // my own exercise
+        if (match(BREAK)) {
+            return breakStatement();
+        }
         if (match(FOR)) {
             return forStatement();
         }
@@ -90,8 +96,18 @@ public class Parser {
         return expressionStatement();
     }
 
+    private Stmt breakStatement() {
+        if (loopDepth == 0) {
+            error(previous(), "Must be inside a loop to use 'break'.");
+        }
+
+        consume(SEMICOLON, "Expect ';' after break.");
+        return new Stmt.Break();
+    }
+
     // for (initializer; condition; increment) {}
     // for (int i=0; i<10; i= i + 1) {}
+    // 在parse过程中将for statement转换为已有的其他statement
     private Stmt forStatement() {
         consume(LEFT_PAREN, "Expect '(' after 'for'.");
 
@@ -122,28 +138,33 @@ public class Parser {
         }
         consume(RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        // body体
-        Stmt body = statement();
+        try {
+            // 循环深度加一
+            loopDepth += 1;
+            // body体
+            Stmt body = statement();
 
-        // 语法脱糖, 使用现有表达式来表达for循环
+            // 语法脱糖, 使用现有表达式来表达for循环
 
-        // 将increment加入到body的最后
-        if (increment != null) {
-            body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
+            // 将increment加入到body的最后
+            if (increment != null) {
+                body = new Stmt.Block(Arrays.asList(body, new Stmt.Expression(increment)));
+            }
+
+            // 使用while来处理循环condition
+            if (condition == null) {
+                condition = new Expr.Literal(true);
+            }
+            body = new Stmt.While(condition, body);
+
+            // 处理初始化语句，先执行该初始化语句再执行while循环
+            if (initializer != null) {
+                body = new Stmt.Block(Arrays.asList(initializer, body));
+            }
+            return body;
+        } finally {
+            loopDepth -= 1;
         }
-
-        // 使用while来处理循环condition
-        if (condition == null) {
-            condition = new Expr.Literal(true);
-        }
-        body = new Stmt.While(condition, body);
-
-        // 处理初始化语句，先执行该初始化语句再执行while循环
-        if (initializer != null) {
-            body = new Stmt.Block(Arrays.asList(initializer, body));
-        }
-
-        return body;
     }
 
     private Stmt ifStatement() {
@@ -197,9 +218,14 @@ public class Parser {
         // 右括号
         consume(RIGHT_PAREN, "Expect ')' after while condition.");
 
-        Stmt body = statement();
-
-        return new Stmt.While(condition, body);
+        try {
+            // 当前循环嵌套深度+1
+            loopDepth += 1;
+            Stmt body = statement();
+            return new Stmt.While(condition, body);
+        } finally {
+            loopDepth -= 1;
+        }
     }
 
     // statement vs Expression
