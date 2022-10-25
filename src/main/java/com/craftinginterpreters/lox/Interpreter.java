@@ -263,7 +263,8 @@ class Interpreter implements Expr.Visitor<Object>,
 
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
-        LoxFunction function = new LoxFunction(stmt);
+        // 在调用函数时，将当前的环境传入其中，这样就可以支持闭包了，也即内部的函数在被返回后，可以访问其对应外部函数的环境
+        LoxFunction function = new LoxFunction(stmt, environment);
         environment.define(stmt.name.lexeme, function);
         return null;
     }
