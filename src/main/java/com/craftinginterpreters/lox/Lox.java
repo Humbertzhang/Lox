@@ -70,6 +70,12 @@ public class Lox {
 
         if (hadError) return;
 
+        // Resolver 进行语义分析
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+        // 语义分析出现错误，则不会进入到解释过程
+        if (hadError) return;
+
         if (!repl) {
             // 文件mod运行
             interpreter.interpret(statements);

@@ -255,7 +255,7 @@ public class Parser {
         return new Stmt.Expression(expr);
     }
 
-    // 函数声明
+    // 函数声明Statement
     // kind有可能是函数名，也有可能是类的方法, 为了报错方便所以加了kind这个参数
     private Stmt.Function function(String kind) {
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");

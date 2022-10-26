@@ -11,6 +11,7 @@ public class GenerateAst {
         defineAst(outputDir, "Expr", Arrays.asList(
                 "Assign   : Token name, Expr value",
                 "Binary   : Expr left, Token operator, Expr right",
+                // 函数调用表达式
                 "Call     : Expr callee, Token paren, List<Expr> arguments",
                 "Grouping : Expr expression",
                 "Literal  : Object value",
@@ -25,6 +26,7 @@ public class GenerateAst {
                 "Block      : List<Stmt> statements",
                 "Break      : ",
                 "Expression : Expr expression",
+                // 函数声明Statement
                 "Function   : Token name, List<Token> params," + " List<Stmt> body",
                 "If         : Expr condition, Stmt thenBranch," + " Stmt elseBranch",
                 "Print      : Expr expression",
