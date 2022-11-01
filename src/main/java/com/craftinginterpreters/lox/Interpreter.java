@@ -246,6 +246,7 @@ class Interpreter implements Expr.Visitor<Object>,
         stmt.accept(this);
     }
 
+    // 用于记录在resolve阶段得到的变量以及其对应的environment深度的关系
     void resolve(Expr expr, int depth) {
         locals.put(expr, depth);
     }

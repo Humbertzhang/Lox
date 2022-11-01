@@ -51,40 +51,43 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         currentFunction = enclosingFunction;
     }
 
+    // 创建Resolver新作用域
     private void beginScope() {
         scopes.push(new HashMap<String, Boolean>());
     }
 
+    // 结束当前Resolver作用域
     private void endScope() {
         scopes.pop();
     }
 
     // 将变量分为两个步骤，变量声明与定义
+    // 此处为声明
     private void declare(Token name) {
         if (scopes.empty()) {
             return;
         }
         Map<String, Boolean> scope = scopes.peek();
-        // 同名变量不允许多次声明
-        /* 例子:
-        fun bad() {
-          var a = "first";
-          var a = "second";
-        }
-        */
+
+        // 以下代码处理同名变量不允许多次声明，如 {var a = 1; var a = 2;}
         if (scope.containsKey(name.lexeme)) {
             Lox.error(name,  "Already variable with this name in this scope.");
         }
+
+        // false代表仅声明了，但是还没初始化
         scope.put(name.lexeme, false);
     }
 
+    // 此处为变量定义，也即完成初始化了(即便没有initializer, 也会被初始化为null, 所以没有initializer也会调用define)
     private void define(Token name) {
-        if (scopes.empty()) {
+        if (scopes.isEmpty()) {
             return;
         }
         scopes.peek().put(name.lexeme, true);
     }
 
+    // 如果我们能够保证变量查找总是在环境链上遍历相同数量的链接，
+    // 也就可以保证每次都可以在相同的作用域中找到相同的变量。
     private void resolveLocal(Expr expr, Token name) {
         for(int i = scopes.size()-1; i >= 0; i--) {
             if (scopes.get(i).containsKey(name.lexeme)) {
@@ -216,6 +219,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitLiteralExpr(Expr.Literal expr) {
+        System.out.println("resolver:" + expr.value);
         return null;
     }
 
