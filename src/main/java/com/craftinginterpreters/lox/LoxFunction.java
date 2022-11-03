@@ -8,9 +8,20 @@ class LoxFunction implements LoxCallable {
     // 闭包环境
     private final Environment closure;
 
-    LoxFunction(Stmt.Function declaration, Environment closure) {
+    // 是否是类的初始化函数
+    private final boolean isInitializer;
+
+    LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
         this.closure = closure;
         this.declaration = declaration;
+        this.isInitializer = isInitializer;
+    }
+
+    // 将类的方法与具体的实例绑定
+    LoxFunction bind(LoxInstance instance) {
+        Environment environment = new Environment(closure);
+        environment.define("this", instance);
+        return new LoxFunction(declaration, environment, isInitializer);
     }
 
     @Override
@@ -30,7 +41,16 @@ class LoxFunction implements LoxCallable {
         try {
             interpreter.executeBlock(declaration.body, environment);
         } catch (Return returnValue) {
+            // 在初始化函数中返回（仅能空返回，因为非空返回已经在resolver中被处理了）
+            // 会直接返回this instance.
+            if (isInitializer) return closure.getAt(0, "this");
+
             return returnValue.value;
+        }
+
+        // 如果为初始化函数直接该实例
+        if (isInitializer) {
+            return closure.getAt(0, "this");
         }
 
         return null;

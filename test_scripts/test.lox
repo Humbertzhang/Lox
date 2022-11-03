@@ -1,2 +1,14 @@
-var a = 1;
-var b = a;
+class Thing {
+  getCallback() {
+    fun localFunction() {
+      print this;
+    }
+
+    return localFunction;
+  }
+}
+
+var callback = Thing().getCallback();
+callback();
+
+print this;

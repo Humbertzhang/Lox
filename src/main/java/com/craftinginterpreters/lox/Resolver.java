@@ -18,8 +18,18 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private enum FunctionType {
         NONE,
-        FUNCTION
+        FUNCTION,
+        METHOD,
+        // 初始化函数
+        INITIALIZER,
     }
+    private enum ClassType {
+        NONE,
+        CLASS
+    }
+
+    // 遍历语法树时，当前是否在一个类声明中
+    private ClassType currentClass = ClassType.CLASS;
 
     void resolve(List<Stmt> statements) {
         for (Stmt statement : statements) {
@@ -108,6 +118,35 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitClassStmt(Stmt.Class stmt) {
+        // 保持上一个currentClass状态
+        ClassType enclosingClass = currentClass;
+        // 更新 currentClass 状态为Class
+        currentClass = ClassType.CLASS;
+
+        declare(stmt.name);
+        define(stmt.name);
+
+        // 设置this的作用域
+        beginScope();
+        scopes.peek().put("this", true);
+
+        for(Stmt.Function method: stmt.methods) {
+            FunctionType declaration = FunctionType.METHOD;
+            if (method.name.lexeme.equals("init")) {
+                declaration = FunctionType.INITIALIZER;
+            }
+            resolveFunction(method, declaration);
+        }
+
+        endScope();
+
+        // 恢复之前的class状态
+        currentClass = enclosingClass;
+        return null;
+    }
+
+    @Override
     public Void visitBreakStmt(Stmt.Break stmt) {
         return null;
     }
@@ -149,6 +188,12 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
 
         if (stmt.value != null) {
+            // 静态分析：类的INIT函数不能返回值
+            if (currentClass == ClassType.CLASS && currentFunction == FunctionType.INITIALIZER) {
+                Lox.error(stmt.keyword,
+                        "Can't return a value from an initializer.");
+            }
+
             resolve(stmt.value);
         }
 
@@ -211,6 +256,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         return null;
     }
 
+    // During resolution, we recurse only into the expression to the left of the dot
+    // The actual property access happens in the interpreter.
+    @Override
+    public Void visitGetExpr(Expr.Get expr) {
+        resolve(expr.object);
+        return null;
+    }
+
     @Override
     public Void visitGroupingExpr(Expr.Grouping expr) {
         resolve(expr.expression);
@@ -219,7 +272,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitLiteralExpr(Expr.Literal expr) {
-        System.out.println("resolver:" + expr.value);
+//        System.out.println("resolver:" + expr.value);
         return null;
     }
 
@@ -227,6 +280,25 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public Void visitLogicalExpr(Expr.Logical expr) {
         resolve(expr.left);
         resolve(expr.right);
+        return null;
+    }
+
+    @Override
+    public Void visitSetExpr(Expr.Set expr) {
+        resolve(expr.value);
+        resolve(expr.object);
+        return null;
+    }
+
+    @Override
+    public Void visitThisExpr(Expr.This expr) {
+        // 静态分析，防止this在类之外被使用
+        if (currentClass == ClassType.NONE) {
+            Lox.error(expr.keyword, "Can't use 'this' outside of a class.");
+            return null;
+        }
+
+        resolveLocal(expr, expr.keyword);
         return null;
     }
 

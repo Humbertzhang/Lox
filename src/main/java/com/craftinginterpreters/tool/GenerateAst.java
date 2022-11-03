@@ -13,10 +13,16 @@ public class GenerateAst {
                 "Binary   : Expr left, Token operator, Expr right",
                 // 函数调用表达式
                 "Call     : Expr callee, Token paren, List<Expr> arguments",
+                // 实例属性访问
+                "Get      : Expr object, Token name",
                 "Grouping : Expr expression",
                 "Literal  : Object value",
                 // 逻辑运算符 and or
                 "Logical  : Expr left, Token operator, Expr right",
+                // 实例属性设置
+                "Set      : Expr object, Token name, Expr value",
+                // 支持class的this关键字
+                "This     : Token keyword",
                 "Unary    : Token operator, Expr right",
                 "Variable : Token name"
         ));
@@ -25,6 +31,7 @@ public class GenerateAst {
                 // 块作用域
                 "Block      : List<Stmt> statements",
                 "Break      : ",
+                "Class      : Token name, List<Stmt.Function> methods",
                 "Expression : Expr expression",
                 // 函数声明Statement
                 "Function   : Token name, List<Token> params," + " List<Stmt> body",
