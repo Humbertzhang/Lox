@@ -196,7 +196,7 @@ class Interpreter implements Expr.Visitor<Object>,
             return ((LoxInstance) object).get(expr.name);
         }
 
-        // 发现object不是LoxInstance，即不是
+        // 发现object不是LoxInstance
         throw new RuntimeError(expr.name, "Only instances have properties.");
     }
 

@@ -277,24 +277,37 @@ public class Parser {
     // kind有可能是函数名，也有可能是类的方法, 为了报错方便所以加了kind这个参数
     private Stmt.Function function(String kind) {
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
-        consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+        // 普通函数
+        if (peek().type == LEFT_PAREN) {
+            consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
 
-        // 参数
-        List<Token> parameters = new ArrayList<>();
-        if (!check(RIGHT_PAREN)) {
-            do {
-                if (parameters.size() >= 255) {
-                    error(peek(), "Can't have more than 255 parameters.");
-                }
-                parameters.add(consume(IDENTIFIER, "Expect parameter name."));
-            } while (match(COMMA));
+            // 参数
+            List<Token> parameters = new ArrayList<>();
+            if (!check(RIGHT_PAREN)) {
+                do {
+                    if (parameters.size() >= 255) {
+                        error(peek(), "Can't have more than 255 parameters.");
+                    }
+                    parameters.add(consume(IDENTIFIER, "Expect parameter name."));
+                } while (match(COMMA));
+            }
+
+            consume(RIGHT_PAREN, "Expect ')' after parameters.");
+
+            consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+            List<Stmt> body = block();
+            return new Stmt.Function(name, parameters, body);
         }
-
-        consume(RIGHT_PAREN, "Expect ')' after parameters.");
-
-        consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
-        List<Stmt> body = block();
-        return new Stmt.Function(name, parameters, body);
+        // ch12 challenges 2: GETTER函数，即表面是属性，但是实际上是个函数
+        else if (peek().type == LEFT_BRACE) {
+            List<Token> parameters = new ArrayList<>();
+            consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+            List<Stmt> body = block();
+            return new Stmt.Function(name, parameters, body);
+        } else {
+            error(peek(), "Expect '(' or '{' after " + kind + " name.");
+            return null;
+        }
     }
 
 

@@ -11,6 +11,8 @@ class LoxFunction implements LoxCallable {
     // 是否是类的初始化函数
     private final boolean isInitializer;
 
+    private final boolean isGetterFunc = false;
+
     LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
         this.closure = closure;
         this.declaration = declaration;
