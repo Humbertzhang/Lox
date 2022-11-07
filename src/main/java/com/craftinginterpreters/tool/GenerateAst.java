@@ -21,6 +21,8 @@ public class GenerateAst {
                 "Logical  : Expr left, Token operator, Expr right",
                 // 实例属性设置
                 "Set      : Expr object, Token name, Expr value",
+                // Super 关键字
+                "Super    : Token keyword, Token method",
                 // 支持class的this关键字
                 "This     : Token keyword",
                 "Unary    : Token operator, Expr right",
@@ -31,7 +33,7 @@ public class GenerateAst {
                 // 块作用域
                 "Block      : List<Stmt> statements",
                 "Break      : ",
-                "Class      : Token name, List<Stmt.Function> methods",
+                "Class      : Token name, Expr.Variable superclass, List<Stmt.Function> methods",
                 "Expression : Expr expression",
                 // 函数声明Statement
                 "Function   : Token name, List<Token> params," + " List<Stmt> body",

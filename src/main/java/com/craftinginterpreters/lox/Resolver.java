@@ -25,7 +25,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
     private enum ClassType {
         NONE,
-        CLASS
+        CLASS,
+        // 是否在一个子类中
+        SUBCLASS
     }
 
     // 遍历语法树时，当前是否在一个类声明中
@@ -127,6 +129,23 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         declare(stmt.name);
         define(stmt.name);
 
+        // 子类与父类不能相同
+        if (stmt.superclass != null &&
+            stmt.name.lexeme.equals(stmt.superclass.name.lexeme)) {
+            Lox.error(stmt.superclass.name, "A class can't inherit from itself.");
+        }
+
+        if (stmt.superclass != null) {
+            currentClass = ClassType.SUBCLASS;
+            resolve(stmt.superclass);
+        }
+
+        // 开始超类作用域，为会使用的super添加true变量
+        if (stmt.superclass != null) {
+            beginScope();
+            scopes.peek().put("super", true);
+        }
+
         // 设置this的作用域
         beginScope();
         scopes.peek().put("this", true);
@@ -140,6 +159,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
 
         endScope();
+
+        // 结束超类作用域
+        if (stmt.superclass != null) {
+            endScope();
+        }
 
         // 恢复之前的class状态
         currentClass = enclosingClass;
@@ -287,6 +311,19 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public Void visitSetExpr(Expr.Set expr) {
         resolve(expr.value);
         resolve(expr.object);
+        return null;
+    }
+
+    @Override
+    public Void visitSuperExpr(Expr.Super expr) {
+        if (currentClass == ClassType.NONE) {
+            Lox.error(expr.keyword, "Can't use 'super' outside of a class.");
+        }
+        else if (currentClass != ClassType.SUBCLASS) {
+            Lox.error(expr.keyword, "Can't use 'super' in a class with no superclass.");
+        }
+
+        resolveLocal(expr, expr.keyword);
         return null;
     }
 
