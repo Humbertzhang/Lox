@@ -26,11 +26,26 @@ class Interpreter implements Expr.Visitor<Object>,
 
             @Override
             public Object call(Interpreter interpreter, List<Object> arguments) {
-                return (double)System.currentTimeMillis()/1000.0;
+                return (double)System.currentTimeMillis();
             }
 
             @Override
             public String toString() { return "<native_fn clock>"; }
+        });
+
+        globals.define("typeof", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments) {
+                return arguments.get(0).getClass().toString();
+            }
+
+            @Override
+            public String toString() { return "<native_fn typeof>"; }
         });
     }
 
